@@ -3,8 +3,6 @@ import re
 from typing import Literal
 
 
-cipher_text = "pamonha"
-
 def keygen(key_len:int = 14):
     random.seed(1)
     my_key = ""
@@ -42,8 +40,23 @@ def decrypt(text: str, key: str):
     return _vigenere(text, key, signal = -1)
 
 
-key = "cafe"
-enc = encrypt(cipher_text, key)
-dec = decrypt(enc, key)
 
-print(key, enc, dec)
+def main():
+    cipher_text = "pamonha"
+    # key = "cafe"
+    key = "ABBA"
+    enc = encrypt(cipher_text, key)
+    dec = decrypt(enc, key)
+    print(key, enc, dec)
+
+
+if __name__ == "main":
+    main() 
+
+
+
+
+
+
+
+
