@@ -28,7 +28,7 @@ def kasiski_distances(repeats):
     return distances
 
 
-def kasiski_key_length(ciphertext, seq_len=3, k_min=2, k_max=15, top_n=3):
+def kasiski_key_length(ciphertext, seq_len=3, k_min=2, k_max=20, top_n=3):
     """Calcula todos os fatores (divisores) das distâncias entre repetiçõese devolve os tamanhos de chave mais votados."""
     # seq_len=3 é o padrão clássico do método de Kasiski (trigramas) sequências mais curtas (2) geram repetições por acaso demais;
     # mais longas (4+) costumam ser raras em textos curtos. Pode ser ajustado se o texto for muito longo/curto, mas 3 é o valor de

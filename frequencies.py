@@ -61,7 +61,7 @@ FREQ_EN = {
     "z": 0.0007,
 }
 
-FREQ_BY_LANG = {"pt": FREQ_PT, "en": FREQ_EN}
+FREQ_BY_LANG = {"ptbr": FREQ_PT, "en": FREQ_EN}
 
 # Índice de coincidência esperado para texto corrido em cada língua
 IC_PT = sum(f**2 for f in FREQ_PT.values())  # ~0.0781

@@ -4,11 +4,15 @@ Ref: Friedman -> https://websites.nku.edu/~christensen/1402%20Friedman%20test%20
 """
 
 from collections import Counter
+import argparse
+from pathlib import Path
 
 from frequencies import FREQ_BY_LANG
 from kasiski_test import kasiski_key_length
-from test import TEST_CASES
+from tests.test_break_the_rules import TEST_CASES
 from vigenere import decrypt
+
+CURRENT_DIR = Path(__file__).parent
 
 
 def extract_letters(text):
@@ -16,30 +20,69 @@ def extract_letters(text):
     return "".join(c.lower() for c in text if c.isascii() and c.isalpha())
 
 
-def calculate_ic(sequence):
+def calculate_ic(column_counter, column_len):
     """Calcula o Índice de Coincidência (IC) de uma sequência de caracteres."""
-    n = len(sequence)
-    if n < 2:
+    if column_len < 2:
         return 0.0
 
-    counts = Counter(sequence)
-    ic = sum(count * (count - 1) for count in counts.values())
-    return ic / (n * (n - 1))
+    ic = sum(count * (count - 1) for count in column_counter.values())
+    return ic / (column_len * (column_len - 1))
 
 
-def find_key_length(ciphertext, candidates):
-    """Estima o tamanho mais provável da chave pelo Método de Friedman"""
+
+def get_column_freq_file(filetext, keylen):
+    """Lê um arquivo em blocos e atualiza os contadores coluna por coluna."""
+    chunk_size = 65536  # 64kb
+    column_lengths = [0] * keylen
+    column_counters = [Counter() for _ in range(keylen)]
+    
+    # Mantém o índice global de letras válidas para o operador '%' funcionar entre blocos
+    global_letter_idx = 0 
+    
+    with open(filetext, "r", encoding="utf-8") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+                
+            letters = extract_letters(chunk)
+            for char in letters:
+                col = global_letter_idx % keylen
+                column_counters[col][char] += 1
+                column_lengths[col] += 1
+                global_letter_idx += 1
+        
+    return column_counters, column_lengths
+
+
+def get_column_freq_text(ciphertext, keylen):
+    """Processa uma string que já está inteira na memória RAM."""
+    column_lengths = [0] * keylen
     letters = extract_letters(ciphertext)
+    column_counters = [Counter() for _ in range(keylen)]
+    
+    for i, char in enumerate(letters):
+        col = i % keylen
+        column_counters[col][char] += 1
+        column_lengths[col] += 1
+
+    return column_counters, column_lengths
+
+
+def find_key_length(ciphertext, candidates, is_file=False):
+    """Estima o tamanho mais provável da chave pelo Método de Friedman."""
     best_keylen = candidates[0]
     best_ic = -99999
     top_keylen = []
 
     for keylen in candidates:
-        groups = [[] for _ in range(keylen)]
-        for i, l in enumerate(letters):
-            groups[i % keylen].append(l)
+        # Verifica se a entrada é um caminho de arquivo ou uma string de texto
+        if is_file:
+            column_counters, column_lengths = get_column_freq_file(ciphertext, keylen)
+        else:
+            column_counters, column_lengths = get_column_freq_text(ciphertext, keylen)
 
-        avg_ic = sum(calculate_ic(col) for col in groups) / keylen
+        avg_ic = sum(calculate_ic(column_counters[i], column_lengths[i]) for i in range(keylen)) / keylen
 
         print(f"[Friedman] tamanho={keylen} IC_medio={avg_ic:.5f}")  # debug visual
 
@@ -96,34 +139,117 @@ def reconstruct_key(ciphertext, keylen, alphabet_freq):
     return "".join(key_chars)
 
 
-def main():
-    cipher_text = """
-    Jgo cqfrv wsevx rku yfhqi nfqn qwp gbpx nac twtgf jgo eqk hpot
-    ikyihv qpcjdc dta axdobds waqkildoi, okujqxyb uxd cwu fc dcbtdc
-    ab lglihu zxp lrgagf qr dta yxcyt hddgnk iz oiuhb zapid aph srq
-    jfvso, tymqujd iszjh eszwi hzihi aorkot ecf tzbwjbhd nfjsvqo fc.
+def run_test_case(index: int):
+    """Executa um caso de teste de TEST_CASES
     """
-    real_key = "QZKMWXPLVB"
-    language = TEST_CASES[0]["language"]  # "en" ou "pt"
-    freq = FREQ_BY_LANG[language]
-
+    case = TEST_CASES[index]
+    ciphertext = case["ciphertext"]
+    freq = FREQ_BY_LANG[case["language"]]
+ 
     print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
-    letters = extract_letters(cipher_text)
+    letters = extract_letters(args.text)
     kasiski_candidates = kasiski_key_length(letters, top_n=10)
     print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
 
     print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman")
-    keylen = find_key_length(cipher_text, kasiski_candidates)
+    keylen = find_key_length(args.text, kasiski_candidates)
     print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
 
     print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen}")
-    key_found = reconstruct_key(cipher_text, keylen, freq)
+    key_found = reconstruct_key(args.text, keylen, freq)
     print(f"\n=> Chave estimada: '{key_found.upper()}'")
     print(f"\n=> Chave real (gabarito): '{real_key}'")
 
-    plaintext = decrypt(cipher_text, key_found)
+    plaintext = decrypt(args.text, key_found)
+    print(f"\n[TEXTO DECIFRADO]\n{plaintext}")
+    
+    
+    dec = dec.strip()
+    plain_text = plain_text.strip()
+    assert dec == plain_text, "Falha no round-trip: texto decifrado difere do original!"
+    print("\nOK: texto decifrado == texto original")
+
+
+
+
+def main(args):
+
+    ciphertext = ""
+    freq = {}
+    real_key = ""
+    if args.text:
+        ciphertext = args.text
+        freq = FREQ_BY_LANG[args.language]
+        real_key = args.key if args.key else "Não informada"
+    if args.test is not None:
+        case = TEST_CASES[args.test]
+        ciphertext = case["ciphertext"]
+        freq = FREQ_BY_LANG[case["language"]]
+
+
+    print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
+    letters = extract_letters(ciphertext)
+    kasiski_candidates = kasiski_key_length(letters, top_n=10)
+    print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
+
+    print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman")
+    keylen = find_key_length(ciphertext, kasiski_candidates)
+    print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
+
+    print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen}")
+    key_found = reconstruct_key(ciphertext, keylen, freq)
+    print(f"\n=> Chave estimada: '{key_found.upper()}'")
+    print(f"\n=> Chave real (gabarito): '{real_key}'")
+
+    plaintext = decrypt(ciphertext, key_found)
     print(f"\n[TEXTO DECIFRADO]\n{plaintext}")
 
 
+
+
+
+def config_parse_args():
+    parser = argparse.ArgumentParser(
+        description=(
+            "This program recieve a file and/or a plaintext the was encrypt using vigenere cipher."
+            "Then the algorithm will try to discover the key length and the key that was used to ecrypt"
+            "The language of the text must be informed. Options are: englishe-eng and brazilian-ptbr"
+        )
+    )
+
+    parser.add_argument("-t",  "--text", type=str, help="a small text to ecrypt/decrypt")
+    parser.add_argument("-f", "--file", type=str, help="path to a existent file")
+    parser.add_argument(
+        "-lang", "--language", type=str, 
+        choices=["ptbr", "eng"], help="The language of the text that is encrypt.")
+    parser.add_argument("-k", "--key", type=str,  help="The real key that was used to encrypt the text.")
+    parser.add_argument(
+        "--test", type=int, 
+        help=f"a number correspondent of a INDEX existent test (in test.py file). MAX INDEX: {len(TEST_CASES) - 1}")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    main()
+    args = config_parse_args()
+    if not args.file and not args.text and args.test is None:
+        print("Either user needs to inform a text and/or a file to be decrypt or a test case INDEX."
+              "\nType -h to see how to use the program")
+        exit(1)
+
+    if args.file:
+        file_path = Path(args.file)
+        if not file_path.is_file():
+            print("A filepath must be valid and exists.\nType -h to see how to use the program")
+            exit(1)
+    if (args.file or args.text) and not args.language:
+        print("A langauge must be informed.\nType -h to see how to use the program")
+        exit(1)
+
+    if args.test is not None and not (0 <= args.test < len(TEST_CASES)):
+        print(
+            f"Invalid INDEX {args.test} of test case. MAX INDEX: {len(TEST_CASES) - 1}."
+            "\nType -h to see how to use the program"
+        )
+        exit(1)
+
+    main(args)

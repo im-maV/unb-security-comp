@@ -52,6 +52,7 @@ TEST_CASES = [
         All yet seems well; and if it end so meet,
         The bitter past, more welcome is the sweet.
         """,
+        "key": "ESZYCIDPYOPUMZGDPAMN",
         "language": "en",
     },
     {

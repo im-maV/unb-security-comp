@@ -39,6 +39,7 @@ def _vigenere(text: str, key: str, signal: Literal[1, -1]):
     Returns:
         O texto resultante apos aplicar o deslocamento da cifra
     """
+
     output = []
     key_idx = 0
     for i in range(len(text)):
@@ -100,16 +101,20 @@ def process_filestream(
     input_path: Path,
     operation_func: Callable[[str, str], str],
     key: str,
-    output_path: Path = CURRENT_DIR / "texts/output.txt",
+    output_path: Path = CURRENT_DIR / "outputs/output.txt",
 ):
     """Lê um arquivo linha a linha, aplica ``operation_func`` e grava o resultado."""
-    
+    chunk_size = 65536
     with (
         open(input_path, "r", encoding="utf-8") as infile,
         open(output_path, "w", encoding="utf-8") as outfile,
     ):
-        for line in infile:
-            processed_line = operation_func(line, key)
+        while True:
+            chunk = infile.read()
+            if not chunk:
+                break
+        
+            processed_line = operation_func(chunk, key)
             outfile.write(processed_line)
     print(f"Arquivo gerado {output_path}")
 
@@ -134,7 +139,7 @@ def main(args: Namespace):
     operation_func = operations_func[args.operation]
     if args.file:
         file_path = Path(args.file)
-        output_path = CURRENT_DIR / f"texts/output_{args.operation}.txt"
+        output_path = CURRENT_DIR / f"outputs/output_{args.operation}.txt"
         process_filestream(file_path, operation_func, key, output_path)
 
     if args.text:
