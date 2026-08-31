@@ -3,7 +3,6 @@ Frequências de letras em português e inglês, usadas como referência na anál
 Fonte de referência: https://pt.wikipedia.org/wiki/Frequ%C3%AAncia_de_letras
 """
 
-
 FREQ_PT = {
     "a": 0.1463,
     "b": 0.0104,
@@ -62,10 +61,9 @@ FREQ_EN = {
     "z": 0.0007,
 }
 
+FREQ_BY_LANG = {"pt": FREQ_PT, "en": FREQ_EN}
 
 # Índice de coincidência esperado para texto corrido em cada língua
 IC_PT = sum(f**2 for f in FREQ_PT.values())  # ~0.0781
 IC_EN = sum(f**2 for f in FREQ_EN.values())  # ~0.0667
 IC_RANDOM = 1 / 26  # ~0.0385
-
-

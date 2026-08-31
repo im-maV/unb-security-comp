@@ -1,12 +1,14 @@
 """
 https://pages.mtu.edu/~shene/NSF-4/Tutorial/VIG/Vig-IOC.html
 Ref: Friedman -> https://websites.nku.edu/~christensen/1402%20Friedman%20test%202.pdf
-Kasiski attack
 """
 
-from vigenere import decrypt
 from collections import Counter
-from frequencies import FREQ_EN, FREQ_PT
+
+from frequencies import FREQ_BY_LANG
+from kasiski_test import kasiski_key_length
+from test import TEST_CASES
+from vigenere import decrypt
 
 
 def extract_letters(text):
@@ -21,35 +23,40 @@ def calculate_ic(sequence):
         return 0.0
 
     counts = Counter(sequence)
-    ic = sum(count * (count-1) for count in counts.values())
-    return ic / (n * (n-1))
+    ic = sum(count * (count - 1) for count in counts.values())
+    return ic / (n * (n - 1))
 
-def find_key_length(ciphertext, k_min, k_max):
+
+def find_key_length(ciphertext, candidates):
     """Estima o tamanho mais provável da chave pelo Método de Friedman"""
     letters = extract_letters(ciphertext)
-    best_keylen = k_min
+    best_keylen = candidates[0]
     best_ic = -99999
+    top_keylen = []
 
-    for keylen in range(k_min, k_max + 1):
+    for keylen in candidates:
         groups = [[] for _ in range(keylen)]
         for i, l in enumerate(letters):
             groups[i % keylen].append(l)
 
         avg_ic = sum(calculate_ic(col) for col in groups) / keylen
 
-        print(keylen, avg_ic)  # debug visual
+        print(f"[Friedman] tamanho={keylen} IC_medio={avg_ic:.5f}")  # debug visual
 
         if avg_ic > best_ic:
             best_ic = avg_ic
             best_keylen = keylen
 
+        top_keylen.append((keylen, avg_ic))
+
+    top_keylen.sort(key=lambda x: x[1], reverse=True)
+    print(f"\n=> Candidatos ordenados por IC médio: {top_keylen}")
+
     return best_keylen
 
 
 def analyze_group_shift(group, alphabet_freq):
-    """
-    Calcula a correlação de frequências (Índice de Coincidência Mútuo) para os 26 deslocamentos.
-    """
+    """Calcula a correlação de frequências (Índice de Coincidência Mútuo) para os 26 deslocamentos."""
     n = len(group)
     if n == 0:
         return [(0.0, 0)]
@@ -90,19 +97,32 @@ def reconstruct_key(ciphertext, keylen, alphabet_freq):
 
 
 def main():
-    cipher_text = "Nfwer hpnnb hivf zou vq, newfr gpona mft ypv doxo, newfr gpona svn aspune bnd efsesu yov. Oevfs goooa mble ypv crz, oevfs goooa sbz gopebyf, oevfs goooa tfml a mje aoe husu yov."
-    real_key = "ABBA"
+    cipher_text = """
+    Jgo cqfrv wsevx rku yfhqi nfqn qwp gbpx nac twtgf jgo eqk hpot
+    ikyihv qpcjdc dta axdobds waqkildoi, okujqxyb uxd cwu fc dcbtdc
+    ab lglihu zxp lrgagf qr dta yxcyt hddgnk iz oiuhb zapid aph srq
+    jfvso, tymqujd iszjh eszwi hzihi aorkot ecf tzbwjbhd nfjsvqo fc.
+    """
+    real_key = "QZKMWXPLVB"
+    language = TEST_CASES[0]["language"]  # "en" ou "pt"
+    freq = FREQ_BY_LANG[language]
 
-    print(" [ETAPA 1] Estimando tamanho da chave via IC ")
-    keylen = find_key_length(cipher_text, 2, 7)
+    print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
+    letters = extract_letters(cipher_text)
+    kasiski_candidates = kasiski_key_length(letters, top_n=10)
+    print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
+
+    print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman")
+    keylen = find_key_length(cipher_text, kasiski_candidates)
     print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
 
-    key_found = reconstruct_key(cipher_text, keylen, FREQ_EN)
-    print("\nchave reconstruída:", key_found)
-    print("chave real:         ", real_key)
+    print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen}")
+    key_found = reconstruct_key(cipher_text, keylen, freq)
+    print(f"\n=> Chave estimada: '{key_found.upper()}'")
+    print(f"\n=> Chave real (gabarito): '{real_key}'")
 
     plaintext = decrypt(cipher_text, key_found)
-    print(f"\ntexto decifrado: {plaintext}")
+    print(f"\n[TEXTO DECIFRADO]\n{plaintext}")
 
 
 if __name__ == "__main__":
