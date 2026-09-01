@@ -10,79 +10,163 @@ from pathlib import Path
 from frequencies import FREQ_BY_LANG
 from kasiski_test import kasiski_key_length
 from tests.test_break_the_rules import TEST_CASES
-from vigenere import decrypt
+from vigenere import decrypt, process_filestream
 
 CURRENT_DIR = Path(__file__).parent
+CHUNK_SIZE = 65536  # 64KB por leitura
 
 
-def extract_letters(text):
-    """Extrai apenas caracteres alfabéticos em minusculo."""
-    return "".join(c.lower() for c in text if c.isascii() and c.isalpha())
+def iter_letters_from_file(file_path, chunk_size=CHUNK_SIZE):
+    """Gera as letras minúsculas do arquivo uma a uma lendo em blocos
 
-
-def calculate_ic(column_counter, column_len):
-    """Calcula o Índice de Coincidência (IC) de uma sequência de caracteres."""
-    if column_len < 2:
-        return 0.0
-
-    ic = sum(count * (count - 1) for count in column_counter.values())
-    return ic / (column_len * (column_len - 1))
-
-
-
-def get_column_freq_file(filetext, keylen):
-    """Lê um arquivo em blocos e atualiza os contadores coluna por coluna."""
-    chunk_size = 65536  # 64kb
-    column_lengths = [0] * keylen
-    column_counters = [Counter() for _ in range(keylen)]
-    
-    # Mantém o índice global de letras válidas para o operador '%' funcionar entre blocos
-    global_letter_idx = 0 
-    
-    with open(filetext, "r", encoding="utf-8") as f:
+    Usada para montar a sequência de letras necessária ao teste de Kasiski."""
+    with open(file_path, "r", encoding="utf-8") as f:
         while True:
             chunk = f.read(chunk_size)
             if not chunk:
                 break
-                
-            letters = extract_letters(chunk)
-            for char in letters:
-                col = global_letter_idx % keylen
-                column_counters[col][char] += 1
-                column_lengths[col] += 1
-                global_letter_idx += 1
-        
-    return column_counters, column_lengths
+            for char in chunk:
+                c = char.lower()
+                if "a" <= c <= "z":
+                    yield c
 
 
-def get_column_freq_text(ciphertext, keylen):
-    """Processa uma string que já está inteira na memória RAM."""
-    column_lengths = [0] * keylen
-    letters = extract_letters(ciphertext)
-    column_counters = [Counter() for _ in range(keylen)]
+def extract_letters_from_file(file_path: Path, chunk_size=CHUNK_SIZE):
+    """Monta a string de letras do arquivo lendo-o em blocos, em vez de dar
+    um único f.read() no arquivo inteiro
+    """
+    return "".join(iter_letters_from_file(file_path, chunk_size))
+
+
+def extract_letters(text: str):
+    """Extrai apenas caracteres alfabéticos em minusculo"""
+    return "".join(c.lower() for c in text if c.isascii() and c.isalpha())
+
+
+def calculate_ic(counts: Counter, n: int):
+    """Calcula o Indice de Coincidência (IC) a partir de um Counter de frequências
+    1/n(n-1) * ∑fi * (fi-1)
+
+    Args: 
+    - counts: dicionario `letra:contagem` representando a quantidade de vezes que determinada letra 
+    apareceu em uma coluna para um certa key length
+    - n: quantidade de letras presentes na coluna (tamanho do array column)
+
+
+
+    """
+    if n < 2:
+        return 0.0
+    ic = sum(count * (count - 1) for count in counts.values())
+    return ic / (n * (n - 1))
+
+
+def get_column_freq_from_text(text: str, keylen: int) -> tuple[list[Counter], list[int]]:
+    """Agrupa as letras do texto nas `keylen` colunas e retorna (counters, lengths).
+    Para um certo valor `keylen` gera-se `keylen` colunas, onde cada uma aramzena letras de uma certa posição da chave
     
-    for i, char in enumerate(letters):
+    Args:
+    - text: texto cifrado
+    - keylen: determinado tamanho da chave
+
+    return:
+    - counters: array de colunas, onde cada uma contem dicionarios letra:contagem das letras presentes naquela coluna
+    - lenghts: array com tamanho de cada coluna
+    """
+    letters = extract_letters(text)
+    counters = [Counter() for _ in range(keylen)]
+    lengths = [0] * keylen
+    for i, l in enumerate(letters):
         col = i % keylen
-        column_counters[col][char] += 1
-        column_lengths[col] += 1
+        counters[col][l] += 1
+        lengths[col] += 1
+    return counters, lengths
 
-    return column_counters, column_lengths
 
 
-def find_key_length(ciphertext, candidates, is_file=False):
-    """Estima o tamanho mais provável da chave pelo Método de Friedman."""
-    best_keylen = candidates[0]
+def get_column_freq_from_file(file_path: Path, keylen: str, chunk_size=CHUNK_SIZE):
+    """Le o arquivo em blocos e conta a frequência de letras por coluna,
+    sem carregar o texto inteiro na memória.
+    
+    Cria-se `keylen` colunas, onde cada uma aramzena letras de uma certa posição da chave
+    Args:
+        - file_path: path para um arquivo
+        - keylen: determinado tamanho da chave
+        - chunk_size: quantida de bytes a ser lido do arquivo
+    
+        return:
+        - counters: array de colunas, onde cada uma contem dicionarios letra:contagem das letras presentes naquela coluna
+        - lenghts: array com tamanho de cada coluna
+    """
+    counters = [Counter() for _ in range(keylen)]
+    lengths = [0] * keylen
+    idx = 0
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            for char in chunk:
+                c = char.lower()
+                if "a" <= c <= "z":
+                    col = idx % keylen
+                    counters[col][c] += 1
+                    lengths[col] += 1
+                    idx += 1
+
+    return counters, lengths
+
+
+
+
+
+def find_key_length_text(ciphertext, candidates):
+    """Estima o tamanho mais provável da chave pelo Método de Friedman -IC"""
+    if len(candidates) == 0:
+        candidates = [i for i in range(2, 21)]
+    columns_by_candidate = {
+        keylen: get_column_freq_from_text(ciphertext, keylen) for keylen in candidates
+    }
+    return find_key_length_from_columns(columns_by_candidate)
+
+
+def find_key_length_file(file_path : Path, candidates: list[int], chunk_size=CHUNK_SIZE):
+    """Estima o tamanho mais provável da chave pelo Método de Friedman -IC"""
+    if len(candidates) == 0:
+        candidates = [i for i in range(2, 21)]
+
+    columns_by_candidate = {
+        keylen: get_column_freq_from_file(file_path, keylen, chunk_size) for keylen in candidates
+    }
+    return find_key_length_from_columns(columns_by_candidate)
+
+
+
+
+def find_key_length_from_columns(columns_by_candidate: dict[int, tuple[list[Counter], list[int]]]):
+    """Recebe um dicionário contendo todos os `keylen` mais provávies.
+    Para cada `keylen` cadidadto com suas colunas onde cada uma contem 
+    apenas letras de determinada posição cifrada por uma letra da chave,
+    realiza-se o cálculo do IC para cada coluna (a média é tirada no final).
+
+    Se o IC for um valor próximo ao um valor não uniforme de algum alfabeto (ex: 0.065 no ingles), então
+    é provável que o `keylen` atual seja o verdadeiro
+
+    Args:
+    -columns_by_candidate: um dicionario `keylen`(int): tuple[lista de colunas; tamanho das colunas]
+    return:
+    - array ordenado do maior para o menor, contendo a `keylen` e seu respectivo IC
+
+    """
+    best_keylen = None
     best_ic = -99999
     top_keylen = []
 
-    for keylen in candidates:
-        # Verifica se a entrada é um caminho de arquivo ou uma string de texto
-        if is_file:
-            column_counters, column_lengths = get_column_freq_file(ciphertext, keylen)
-        else:
-            column_counters, column_lengths = get_column_freq_text(ciphertext, keylen)
-
-        avg_ic = sum(calculate_ic(column_counters[i], column_lengths[i]) for i in range(keylen)) / keylen
+    for keylen, (counters, lengths) in columns_by_candidate.items():
+        avg_ic = sum(
+            calculate_ic(counters[i], lengths[i]) for i in range(keylen)
+        ) / keylen
 
         print(f"[Friedman] tamanho={keylen} IC_medio={avg_ic:.5f}")  # debug visual
 
@@ -98,13 +182,19 @@ def find_key_length(ciphertext, candidates, is_file=False):
     return best_keylen
 
 
-def analyze_group_shift(group, alphabet_freq):
-    """Calcula a correlação de frequências (Índice de Coincidência Mútuo) para os 26 deslocamentos."""
-    n = len(group)
+
+
+def analyze_column_shift(counts: Counter, n: int, alphabet_freq: dict[str, float]):
+    """Calcula a correlação de frequências (IC Mútuo) para os 26 deslocamentos possiveis,
+    a partir das CONTAGENS de uma coluna 
+    
+    Args:
+    -counts: dict letra:contagem
+
+    """
     if n == 0:
         return [(0.0, 0)]
 
-    counts = Counter(group)
     q = [counts.get(chr(97 + i), 0) / n for i in range(26)]
     p = [alphabet_freq[chr(97 + i)] for i in range(26)]
 
@@ -117,62 +207,72 @@ def analyze_group_shift(group, alphabet_freq):
     return keychar_candidates
 
 
-def reconstruct_key(ciphertext, keylen, alphabet_freq):
-    """Reconstrói a chave analisando cada grupo individualmente."""
-    letters = extract_letters(ciphertext)
-    cesar_groups = [[] for _ in range(keylen)]
 
-    for idx, l in enumerate(letters):
-        cesar_groups[idx % keylen].append(l)
+def reconstruct_key(ciphertext: str, keylen: int, alphabet_freq: dict[str, float]):
+    """Reconstrói a chave analisando umm arquivo de texto simples """
+    counters, lengths = get_column_freq_from_text(ciphertext, keylen)
+    return reconstruct_key_from_columns(counters, lengths, alphabet_freq)
 
+
+def reconstruct_key_file(file_path: Path, keylen: int, alphabet_freq: dict[str, float], chunk_size=CHUNK_SIZE):
+    """lê o arquivo em blocos para montar as
+    contagens por coluna, sem carregar o texto inteiro na memoria"""
+    counters, lengths = get_column_freq_from_file(file_path, keylen, chunk_size)
+    return reconstruct_key_from_columns(counters, lengths, alphabet_freq)
+
+
+
+def reconstruct_key_from_columns(counters: list[Counter], lengths: list[int], alphabet_freq: dict[str, float]):
+    """Reconstrói a chave analisando cada grupo (coluna) individualmente.
+        Colunas são grupos de caracteres que foram cifrados pelo mesmo caractere da chave (cifra de césar)
+
+    Args: 
+    - counters: list de dict letras:contagem simbolizando as colunas
+    - lengths: tamanho de cada coluna
+    - alphabet_freq: frequencia de cada letra de determinado alfaberto
+    return:
+    - possivel chave
+    """
     key_chars = []
-    for idx, group in enumerate(cesar_groups):
-        candidates = analyze_group_shift(group, alphabet_freq)
+    for idx, (counts, n) in enumerate(zip(counters, lengths)):
+        candidates = analyze_column_shift(counts, n, alphabet_freq)
         best_m, best_shift = candidates[0]
         key_char = chr(97 + best_shift)
         key_chars.append(key_char)
 
         print(
-            f"grupo {idx} (n={len(group)}) -> shift={best_shift} letra='{key_char}' M={best_m:.5f}"
+            f"grupo {idx} (n={n}) -> shift={best_shift} letra='{key_char}' M={best_m:.5f}"
         )
 
     return "".join(key_chars)
 
 
-def run_test_case(index: int):
-    """Executa um caso de teste de TEST_CASES
-    """
-    case = TEST_CASES[index]
-    ciphertext = case["ciphertext"]
-    freq = FREQ_BY_LANG[case["language"]]
- 
-    print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
-    letters = extract_letters(args.text)
-    kasiski_candidates = kasiski_key_length(letters, top_n=10)
-    print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
-
-    print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman")
-    keylen = find_key_length(args.text, kasiski_candidates)
-    print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
-
-    print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen}")
-    key_found = reconstruct_key(args.text, keylen, freq)
-    print(f"\n=> Chave estimada: '{key_found.upper()}'")
-    print(f"\n=> Chave real (gabarito): '{real_key}'")
-
-    plaintext = decrypt(args.text, key_found)
-    print(f"\n[TEXTO DECIFRADO]\n{plaintext}")
-    
-    
-    dec = dec.strip()
-    plain_text = plain_text.strip()
-    assert dec == plain_text, "Falha no round-trip: texto decifrado difere do original!"
-    print("\nOK: texto decifrado == texto original")
-
-
 
 
 def main(args):
+    if args.file:
+        file_path = Path(args.file)
+        freq = FREQ_BY_LANG[args.language]
+        real_key = args.key if args.key else "Não informada"
+
+        print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
+        letters = extract_letters_from_file(file_path)
+        kasiski_candidates = kasiski_key_length(letters, top_n=10)
+        print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
+
+        print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman (streaming)")
+        keylen = find_key_length_file(file_path, kasiski_candidates)
+        print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
+
+        print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen} (streaming)")
+        key_found = reconstruct_key_file(file_path, keylen, freq)
+        print(f"\n=> Chave estimada: '{key_found.upper()}'")
+        print(f"\n=> Chave real (gabarito): '{real_key}'")
+
+        output_path = file_path.with_name(file_path.stem + "_decrypted" + file_path.suffix)
+        process_filestream(file_path, decrypt, key_found, output_path)
+        print(f"\n[TEXTO DECIFRADO] escrito em: {output_path}")
+        return
 
     ciphertext = ""
     freq = {}
@@ -185,7 +285,7 @@ def main(args):
         case = TEST_CASES[args.test]
         ciphertext = case["ciphertext"]
         freq = FREQ_BY_LANG[case["language"]]
-
+        real_key = case["real_key"]
 
     print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
     letters = extract_letters(ciphertext)
@@ -193,7 +293,7 @@ def main(args):
     print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
 
     print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman")
-    keylen = find_key_length(ciphertext, kasiski_candidates)
+    keylen = find_key_length_text(ciphertext, kasiski_candidates)
     print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
 
     print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen}")
@@ -205,9 +305,6 @@ def main(args):
     print(f"\n[TEXTO DECIFRADO]\n{plaintext}")
 
 
-
-
-
 def config_parse_args():
     parser = argparse.ArgumentParser(
         description=(
@@ -217,14 +314,14 @@ def config_parse_args():
         )
     )
 
-    parser.add_argument("-t",  "--text", type=str, help="a small text to ecrypt/decrypt")
+    parser.add_argument("-t", "--text", type=str, help="a small text to ecrypt/decrypt")
     parser.add_argument("-f", "--file", type=str, help="path to a existent file")
     parser.add_argument(
-        "-lang", "--language", type=str, 
+        "-lang", "--language", type=str,
         choices=["ptbr", "eng"], help="The language of the text that is encrypt.")
-    parser.add_argument("-k", "--key", type=str,  help="The real key that was used to encrypt the text.")
+    parser.add_argument("-k", "--key", type=str, help="The real key that was used to encrypt the text.")
     parser.add_argument(
-        "--test", type=int, 
+        "--test", type=int,
         help=f"a number correspondent of a INDEX existent test (in test.py file). MAX INDEX: {len(TEST_CASES) - 1}")
     return parser.parse_args()
 

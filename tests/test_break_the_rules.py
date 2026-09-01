@@ -103,4 +103,90 @@ TEST_CASES = [
         The bitter past, more welcome is the sweet.
         """
     },
+    {
+        "ciphertext": f"""
+        Hs mmuad kgrp, yy lkld dm wsjmyfi,
+        Drfsx-gq mapp sqyzs scpmegmgp,
+        3 Nqmjr eedqmvn y xmusyrtcdz kvirmqe.
+
+        Vhxgz tjyz tlm é buxha fãb twmmui,
+        Gtqhp vdzbd tsbrwktpc i dhnsgcpzjh,
+        6 Fuq n qwlópki d gcztgnqg lcdm pyacmui.
+
+        Qp kcgnq gá vrjca zear bg iftppxxmck;
+        Pps bnvs n zgu qppfpl xá cksprmqs
+        9 Vd mwbupq qdoezy tje hv, haqck dhgbosy.
+
+        Ontwpr zãb tgrqq krbm hxhtz kqirmqs;
+        Lzlvw r hmbd ie rkqiipbw ed rqudgy,
+        12 Ejuzcu kti a ose byoqqwm oquzcuqpda.
+
+        Qihngu yxt y ibu onrlca yr gwqaczd,
+        Dlrt cm n bdae qfgmqm vmubgbphpn,
+        15 Wxt pmisj sãm rzrusbsi yd idjsmee.
+
+        Sn ynbr djvtc, q iá, jh aul oefgyplr,
+        Kg-zwy qrzdg às qftskbca r ejocyfz,
+        18 Wxt, cqexg, dk vwgp nognq ugl vuunrvn.
+
+        Cpbãr d yghiyaxr jm fnrln qg itjgsiu,
+        Ctk gd pqvxg mm nijd nsgxgqgyp,
+        21 Nmdywky pwlic oiluaaopdm, vritggbd.
+
+        T acbi ctkp d azéymln cuoriyjp
+        Maaxh ps aahsr, há uiokm, wcxm lkggoeb
+        24 Sdgy q udg nsgcsnyr tm chi dtrcdd,
+
+        D ksj âhulu dhsuz, umd rtmpt ybhcaru,
+        Ydlhry-kd y tmpxpog pqmilso a rwhzçm
+        27 Sch wmatg hhbr yaynmk oyuarj bwiien.
+
+        Zhcda wá vwomwadsm c ridou opseb,
+        Wwfsk xhay rtmqqzd uaxqe suypbh;
+        30 Bywh vmhdr hezqs g oé dkzpt lc eueru.
+        """,
+        "language": "ptbr",
+        "real_key": "ESZYCIDPYOPUMZGDPAMN",
+        "plaintext": f"""
+        Da nossa vida, em meio da jornada,
+        Achei-me numa selva tenebrosa,
+        3 Tendo perdido a verdadeira estrada.
+
+        Dizer qual era é cousa tão penosa,
+        Desta brava espessura a asperidade,
+        6 Que a memória a relembra inda cuidosa.
+
+        Na morte há pouco mais de acerbidade;
+        Mas para o bem narrar lá deparado
+        9 De outras cousas que vi, direi verdade.
+
+        Contar não posso como tinha entrado;
+        Tanto o sono os sentidos me tomara,
+        12 Quando hei o bom caminho abandonado.
+
+        Depois que a uma colina me cercara,
+        Onde ia o vale escuro terminando,
+        15 Que pavor tão profundo me causara.
+
+        Ao alto olhei, e já, de luz banhando,
+        Vi-lhe estar às espaldas o planeta,
+        18 Que, certo, em toda parte vai guiando.
+
+        Então o assombro um tanto se aquieta,
+        Que do peito no lago perdurava,
+        21 Naquela noite atribulada, inquieta.
+
+        E como quem o anélito esgotava
+        Sobre as ondas, já salvo, inda medroso
+        24 Olha o mar perigoso em que lutava,
+
+        O meu ânimo assim, que treme ansioso,
+        Volveu-se a remirar vencido o espaço
+        27 Que homem vivo jamais passou ditoso.
+
+        Tendo já repousado o corpo lasso,
+        Segui pela deserta falda avante;
+        30 Mais baixo sendo o pé firme no passo.
+        """,
+    },
 ]
