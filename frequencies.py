@@ -67,3 +67,4 @@ FREQ_BY_LANG = {"ptbr": FREQ_PT, "en": FREQ_EN}
 IC_PT = sum(f**2 for f in FREQ_PT.values())  # ~0.0781
 IC_EN = sum(f**2 for f in FREQ_EN.values())  # ~0.0667
 IC_RANDOM = 1 / 26  # ~0.0385
+IC_LANG = {"ptbr": IC_PT, "en": IC_EN}

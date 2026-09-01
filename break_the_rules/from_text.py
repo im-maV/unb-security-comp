@@ -29,14 +29,15 @@ def get_column_freq_from_text(text: str, keylen: int) -> tuple[list[Counter], li
 
 
 
-def find_key_length_text(ciphertext, candidates):
+def find_key_length_text(ciphertext: str, candidates: list[int], ic_lang: float):
     """Estima o tamanho mais provável da chave pelo Método de Friedman -IC"""
     if len(candidates) == 0:
         candidates = [i for i in range(2, 21)]
     columns_by_candidate = {
         keylen: get_column_freq_from_text(ciphertext, keylen) for keylen in candidates
     }
-    return find_key_length_from_columns(columns_by_candidate)
+    ranked = find_key_length_from_columns(columns_by_candidate, ic_lang)
+    return ranked, columns_by_candidate
 
 
 def reconstruct_key(ciphertext: str, keylen: int, alphabet_freq: dict[str, float]):

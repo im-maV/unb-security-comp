@@ -1,6 +1,30 @@
 TEST_CASES = [
     {
         "ciphertext": f"""
+        Dlc aygmo zbsux jmh nswtq yzcb xfo pyjc byk urmjo xfo wsx wcdw
+        qvsuvc zolgxh rri bswrkrr wssxxysrq.
+        """,
+        "real_key": "KEY",
+        "language": "en",
+        "plaintext":f"""
+        The quick brown fox jumps over the lazy dog while the sun sets
+        slowly behind the distant mountains.
+        """,
+    },
+    {
+        "ciphertext": f"""
+        Llk klwuo hlfkf jur aiety imsj xny corc jix kzmry kvw wah jslw
+        yffkdc hyywfh zbv rawzueh esahkoary.
+        """,
+        "real_key": "SEGURO",
+        "language": "en",
+        "plaintext":f"""
+        The quick brown fox jumps over the lazy dog while the sun sets
+        slowly behind the distant mountains.
+        """,
+    },
+    {
+        "ciphertext": f"""
         Lgc tjgqz vduzn rgw hxbng dpqx whq dzxb smu lburh ttw rsq hchh
         mxuzlk tdflcb hwy povtmfs krjlhpczy, saufsgqv rvt mwe ln ezzbhh
         mt dlmtje mfc nxgnzt ue zke naqbv gchjlz zr ttwhp qtqhh zax whq
@@ -13,6 +37,22 @@ TEST_CASES = [
         slowly behind the distant mountains, painting the sky in shades
         of orange and purple as the birds return to their nests for the
         night, singing their final songs before the darkness settles in.
+        """,
+    },
+    {
+        "ciphertext": f"""
+        Q yaos tvep e tvuke fv rzm fl Rjqc lnlycutj s ihtj hqymde
+        vyaiuwplvqgutz wqirz s vhpzxg cemqgshj, wquhvrfv cjq rlisiu
+        kopvckon uwl nvhccah io bm geiv cmmuaagmpv pmóbkto à apqyenxc
+        vnyi cz árqstls xvgzcdeo hloeu l vzvfls nsd v cép ebbl xpcyo.
+        """,
+        "real_key": "CHAVE",
+        "language": "ptbr",
+        "plaintext":f"""
+        O rato roeu a roupa do rei de Roma enquanto o gato dormia
+        tranquilamente sobre o tapete vermelho, sonhando com peixes
+        dourados que nadavam em um lago cristalino próximo à floresta
+        onde as árvores cresciam altas e verdes sob o céu azul claro        
         """,
     },
     {

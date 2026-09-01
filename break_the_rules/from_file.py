@@ -63,7 +63,7 @@ def get_column_freq_from_file(file_path: Path, keylen: str, chunk_size=CHUNK_SIZ
 
 
 
-def find_key_length_file(file_path : Path, candidates: list[int], chunk_size=CHUNK_SIZE):
+def find_key_length_file(file_path : Path, candidates: list[int], ic_lang:float, chunk_size=CHUNK_SIZE):
     """Estima o tamanho mais provável da chave pelo Método de Friedman -IC"""
     if len(candidates) == 0:
         candidates = [i for i in range(2, 21)]
@@ -71,7 +71,8 @@ def find_key_length_file(file_path : Path, candidates: list[int], chunk_size=CHU
     columns_by_candidate = {
         keylen: get_column_freq_from_file(file_path, keylen, chunk_size) for keylen in candidates
     }
-    return find_key_length_from_columns(columns_by_candidate)
+    ranked = find_key_length_from_columns(columns_by_candidate, ic_lang)
+    return ranked, columns_by_candidate
 
 
 

@@ -1,13 +1,13 @@
 import argparse
 from pathlib import Path
 
-from frequencies import FREQ_BY_LANG
+from frequencies import FREQ_BY_LANG, IC_LANG
 from break_the_rules.kasiski_test import kasiski_key_length
 from tests.test_break_the_rules import TEST_CASES
 from vigenere.cipher import decrypt, process_filestream
 from break_the_rules.from_file import extract_letters_from_file, reconstruct_key_file, find_key_length_file
 from break_the_rules.from_text import extract_letters, reconstruct_key, find_key_length_text
-
+from break_the_rules.chi_square import select_keylen_by_chisquare
 
 
 def main(args):
@@ -15,6 +15,7 @@ def main(args):
         file_path = Path(args.file)
         freq = FREQ_BY_LANG[args.language]
         real_key = args.key if args.key else "Não informada"
+        ic_lang = IC_LANG[args.language]
 
         print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
         letters = extract_letters_from_file(file_path)
@@ -22,13 +23,15 @@ def main(args):
         print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
 
         print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman (streaming)")
-        keylen = find_key_length_file(file_path, kasiski_candidates)
-        print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
+        ranked, columns_by_candidate = find_key_length_file(file_path, kasiski_candidates, ic_lang)
 
-        print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen} (streaming)")
-        key_found = reconstruct_key_file(file_path, keylen, freq)
-        print(f"\n=> Chave estimada: '{key_found.upper()}'")
-        print(f"\n=> Chave real (gabarito): '{real_key}'")
+        print("\n[ETAPA 1C] Desempate final via qui-quadrado (top candidatos)")
+        keylen, key_found, scores = select_keylen_by_chisquare(
+            columns_by_candidate, ranked, freq, top_n=5
+        )
+
+        print(f"\n=> Tamanho de chave final (pos qui-quadrado): {keylen}")
+        print(f"=> Chave estimada: '{key_found.upper()}'")
 
         output_path = file_path.with_name(file_path.stem + "_decrypted" + file_path.suffix)
         process_filestream(file_path, decrypt, key_found, output_path)
@@ -38,15 +41,18 @@ def main(args):
     ciphertext = ""
     freq = {}
     real_key = ""
+    ic_lang = ""
     if args.text:
         ciphertext = args.text
         freq = FREQ_BY_LANG[args.language]
         real_key = args.key if args.key else "Não informada"
+        ic_lang = IC_LANG[args.language]
     if args.test is not None:
         case = TEST_CASES[args.test]
         ciphertext = case["ciphertext"]
         freq = FREQ_BY_LANG[case["language"]]
         real_key = case["real_key"]
+        ic_lang = IC_LANG[case["language"]]
 
     print("[ETAPA 1A] Estimando tamanho da chave via Kasiski")
     letters = extract_letters(ciphertext)
@@ -54,13 +60,14 @@ def main(args):
     print(f"\n=> Candidatos do Kasiski: {kasiski_candidates}\n")
 
     print("[ETAPA 1B] Estimando tamanho da chave via IC|Friedman")
-    keylen = find_key_length_text(ciphertext, kasiski_candidates)
-    print(f"\n=> Tamanho de chave mais provável: {keylen}\n")
+    ranked, columns_by_candidate = find_key_length_text(ciphertext, kasiski_candidates, ic_lang)
 
-    print(f"\n[ETAPA 2] Reconstruindo chave para tamanho candidato={keylen}")
-    key_found = reconstruct_key(ciphertext, keylen, freq)
-    print(f"\n=> Chave estimada: '{key_found.upper()}'")
-    print(f"\n=> Chave real (gabarito): '{real_key}'")
+    print("\n[ETAPA 1C] Desempate final via qui-quadrado (top candidatos)")
+    keylen, key_found, scores = select_keylen_by_chisquare(
+        columns_by_candidate, ranked, freq, top_n=5
+    )
+    print(f"\n=> Tamanho de chave final (pos qui-quadrado): {keylen}")
+    print(f"=> Chave estimada: '{key_found.upper()}'")
 
     plaintext = decrypt(ciphertext, key_found)
     print(f"\n[TEXTO DECIFRADO]\n{plaintext}")
